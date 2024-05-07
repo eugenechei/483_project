@@ -112,8 +112,11 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from collections import defaultdict
 
-sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id="2f631e8906234d68856e02150868d3f9",
-                                                           client_secret="e88664c38822495fa4520aebbc752203"))
+#sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id="2f631e8906234d68856e02150868d3f9",
+#                                                           client_secret="e88664c38822495fa4520aebbc752203"))
+
+sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id="56016d42aa844966a9247f28ed1cf2dd",
+                                                           client_secret="3510e6a3c6d24b769b26f93f5e0379a9"))
 
 def find_song(name, year):
     song_data = defaultdict()
