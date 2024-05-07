@@ -1,13 +1,11 @@
 import os
 import numpy as np
 import pandas as pd
-
 import seaborn as sns
 import plotly.express as px 
 import matplotlib.pyplot as plt
 #Added line
-plt.show()
-
+### plt.show()
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
@@ -15,8 +13,8 @@ from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
 from sklearn.metrics import euclidean_distances
 from scipy.spatial.distance import cdist
-
 import warnings
+
 warnings.filterwarnings("ignore")
 
 data = pd.read_csv("/Users/macbook/Desktop/483_project/data.csv")
@@ -40,9 +38,9 @@ features = np.array(feature_names)
 # Instantiate the visualizer
 visualizer = FeatureCorrelation(labels=features)
 
-plt.rcParams['figure.figsize']=(20,20)
+plt.rcParams['figure.figsize']=(8,8)
 visualizer.fit(X, y)     # Fit the data to the visualizer
-visualizer.show()
+### visualizer.show()
 
 def get_decade(year):
     period_start = int(year/10) * 10
@@ -55,22 +53,25 @@ sns.set(rc={'figure.figsize':(11 ,6)})
 sns.countplot(data['decade'])
 
 sound_features = ['acousticness', 'danceability', 'energy', 'instrumentalness', 'liveness', 'valence']
+
 fig = px.line(year_data, x='year', y=sound_features)
-fig.show()
+### fig.show()
+
 top10_genres = genre_data.nlargest(10, 'popularity')
 
 fig = px.bar(top10_genres, x='genres', y=['valence', 'energy', 'danceability', 'acousticness'], barmode='group')
-fig.show()
+### fig.show()
 
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 
-cluster_pipeline = Pipeline([('scaler', StandardScaler()), ('kmeans', KMeans(n_clusters=10, n_jobs=-1))])
+# Deprecated in recent scikit-learn
+# cluster_pipeline = Pipeline([('scaler', StandardScaler()), ('kmeans', KMeans(n_clusters=10, n_jobs=-1))])
+cluster_pipeline = Pipeline([('scaler', StandardScaler()), ('kmeans', KMeans(n_clusters=10))])
 X = genre_data.select_dtypes(np.number)
 cluster_pipeline.fit(X)
 genre_data['cluster'] = cluster_pipeline.predict(X)
-
 
 from sklearn.manifold import TSNE
 
@@ -82,12 +83,12 @@ projection['cluster'] = genre_data['cluster']
 
 fig = px.scatter(
     projection, x='x', y='y', color='cluster', hover_data=['x', 'y', 'genres'])
-fig.show()
+### fig.show()
 
-song_cluster_pipeline = Pipeline([('scaler', StandardScaler()), 
-                                  ('kmeans', KMeans(n_clusters=20, 
-                                   verbose=False, n_jobs=4))
-                                 ], verbose=False)
+# Deprecated in recent Scikit-learn
+# song_cluster_pipeline = Pipeline([('scaler', StandardScaler()), ('kmeans', KMeans(n_clusters=20, 
+#                                verbose=False, n_jobs=4))], verbose=False)
+song_cluster_pipeline = Pipeline([('scaler', StandardScaler()), ('kmeans', KMeans(n_clusters=20, verbose=False))], verbose=False)
 
 X = data.select_dtypes(np.number)
 number_cols = list(X.columns)
@@ -105,14 +106,14 @@ projection['cluster'] = data['cluster_label']
 
 fig = px.scatter(
     projection, x='x', y='y', color='cluster', hover_data=['x', 'y', 'title'])
-fig.show()
+### fig.show()
 
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 from collections import defaultdict
 
-sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=os.environ["SPOTIFY_CLIENT_ID"],
-                                                           client_secret=os.environ["SPOTIFY_CLIENT_SECRET"]))
+sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id="2f631e8906234d68856e02150868d3f9",
+                                                           client_secret="e88664c38822495fa4520aebbc752203"))
 
 def find_song(name, year):
     song_data = defaultdict()
@@ -146,14 +147,13 @@ number_cols = ['valence', 'year', 'acousticness', 'danceability', 'duration_ms',
 def get_song_data(song, spotify_data):
     
     try:
-        song_data = spotify_data[(spotify_data['name'] == song['name']) 
-                                & (spotify_data['year'] == song['year'])].iloc[0]
+        song_data = spotify_data[(spotify_data['name'] == song['name']) & (spotify_data['year'] == song['year'])].iloc[0]
         return song_data
     
     except IndexError:
         return find_song(song['name'], song['year'])
         
-def get_mean_vector(song_list, spotify_data):
+'''def get_mean_vector(song_list, spotify_data):
     
     song_vectors = []
     
@@ -166,7 +166,30 @@ def get_mean_vector(song_list, spotify_data):
         song_vectors.append(song_vector)  
     
     song_matrix = np.array(list(song_vectors))
-    return np.mean(song_matrix, axis=0)
+    return np.mean(song_matrix, axis=0)'''
+
+def get_mean_vector(song_list, spotify_data):
+    song_vectors = []
+    
+    for song in song_list:
+        song_data = get_song_data(song, spotify_data)
+        if song_data is None:
+            print(f'Warning: Song {song["name"]} from {song["year"]} does not exist in Spotify or in database')
+            continue
+        song_vector = song_data[number_cols].values
+        # Ensure the song_vector is flattened to one dimension
+        if song_vector.ndim > 1:
+            song_vector = song_vector.flatten()
+        song_vectors.append(song_vector)
+        print(f'Adding vector for {song["name"]} with shape {song_vector.shape}')  # Debug print
+
+    try:
+        song_matrix = np.array(song_vectors)
+        return np.mean(song_matrix, axis=0)
+    except ValueError as e:
+        print(f'Error creating numpy array from song vectors: {e}')
+        print([vec.shape for vec in song_vectors])  # Show shapes of all vectors
+        raise
 
 
 def flatten_dict_list(dict_list):
@@ -180,7 +203,6 @@ def flatten_dict_list(dict_list):
             flattened_dict[key].append(value)
             
     return flattened_dict
-
 
 def recommend_songs( song_list, spotify_data, n_songs=10):
     
@@ -198,8 +220,11 @@ def recommend_songs( song_list, spotify_data, n_songs=10):
     rec_songs = rec_songs[~rec_songs['name'].isin(song_dict['name'])]
     return rec_songs[metadata_cols].to_dict(orient='records')
 
-recommend_songs([{'name': 'Come As You Are', 'year':1991},
-                {'name': 'Smells Like Teen Spirit', 'year': 1991},
-                {'name': 'Lithium', 'year': 1992},
-                {'name': 'All Apologies', 'year': 1993},
-                {'name': 'Stay Away', 'year': 1993}],  data)
+test_song_list = [
+    {'name': 'Stay Away', 'year': 1993},
+    {'name': 'Come As You Are', 'year': 1991},
+    {'name': 'Smells Like Teen Spirit', 'year': 1991},
+    {'name': 'Lithium', 'year': 1992},
+    {'name': 'Perfect', 'year': 2017}]
+
+recommend_songs(test_song_list, data)
